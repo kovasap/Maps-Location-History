@@ -1,16 +1,16 @@
 import pandas as pd
-import requests
-import calendar
-import glob
-from bs4 import BeautifulSoup
-from datetime import datetime
-import time
-import re
 import numpy as np
-from datetime import datetime
+import datetime as DT
+import re
 import imp
-from mpl_toolkits.basemap import Basemap
+import glob
+import time
+import calendar
+import requests
+from datetime import datetime
 from dateutil import tz
+from bs4 import BeautifulSoup
+from mpl_toolkits.basemap import Basemap
 
 
 def convert_timezone(dtime):
@@ -92,7 +92,7 @@ def create_df(places):
     return df.sort_values('IndexTime', ascending=False)
 
 
-def get_kml_file(month, day, cookie_content, folder):
+def get_kml_file(year, month, day, cookie_content, folder):
     """
     Get KML file from your location history and save it in a chosen folder
     :param month: month of the location history
@@ -101,19 +101,24 @@ def get_kml_file(month, day, cookie_content, folder):
     :param folder: path to the folder
     """
     cookies = dict(cookie=cookie_content)
+    
     if type(month) == str:
         month = month[:3].title()
         cal = {v:k for k,v in enumerate(calendar.month_abbr, -1)}
         month_url = str(cal[month])
     else:
         month_url = str(int(month - 1))
+    
+    year_file = year_url = str(int(year))
     month_file = str(int(month_url) + 1)
     day_file = day_url = str(int(day))
+    
     if len(month_file) == 1 :
         month_file = '0' + month_file
     if len(day_file) == 1 :
         day_file = '0' + day_file
-    url = 'https://www.google.com/maps/timeline/kml?authuser=0&pb=!1m8!1m3!1i2017!2i{0}!3i{1}!2m3!1i2017!2i{0}!3i{1}'.format(month_url, day_url)
+        
+    url = 'https://www.google.com/maps/timeline/kml?authuser=0&pb=!1m8!1m3!1i{0}!2i{1}!3i{2}!2m3!1i{0}!2i{1}!3i{2}'.format(year_url, month_url, day_url)
     time.sleep(np.random.randint(0, 0.3))
     r = requests.get(url, cookies=cookies)
     if r.status_code == 200:
@@ -121,40 +126,44 @@ def get_kml_file(month, day, cookie_content, folder):
             f.write(r.text)
 
         
-def create_kml_files(begin_month, begin_day, end_month, end_day, cookie_content, folder):
+def create_kml_files(begin_year, begin_month, begin_day, end_year, end_month, end_day, cookie_content, folder):
     """
     Create multiple KML files from a date range
-    :param begin_month: first month of the location history
-    :param begin_day: first day of the location history
-    :param end_month: last month of the location history
-    :param end_day: last day of the location history
+    :param begin_year: first year of the location history as integer
+    :param begin_month: first month of the location history as integer
+    :param begin_day: first day of the location history as integer
+    :param end_month: last year of the location history as integer
+    :param end_month: last month of the location history as integer
+    :param end_day: last day of the location history as integer
     :param cookie_content: your cookie (see README)
     :param folder: path to the folder
     """
-    # Set months to extract
-    months = list(calendar.month_abbr)
-    # Convert month name to index
-    begin_month_index = months.index(begin_month[:3].title())
-    end_month_index = months.index(end_month[:3].title())
-    month_range = [elem for elem in months if begin_month_index <= months.index(elem) <= end_month_index]
+    # Convert input values into date format
+    begin_date = DT.date(year=begin_year, 
+                         month=begin_month, 
+                         day=begin_day)
+    end_date = DT.date(year=end_year, 
+                       month=end_month, 
+                       day=end_day)
+
+    # Get number of days to extract
+    ndays = (end_date - begin_date).days
+    date_range = [end_date - DT.timedelta(days=x) for x in range(-1, ndays)]
     
-    for month in month_range:
+    # Get year month and day for individual KMLs
+    # Note: lists dates in reverse chronological order
+    for i, j in enumerate(date_range):
+        year = date_range[i].year
+        month = date_range[i].month
+        day = date_range[i].day
         
-        # TODO leap years
-        month_index = months.index(month)
-        # Set days to extract
-        if begin_month_index == end_month_index:
-            day_range = range(int(begin_day), int(end_day) + 1)
-        elif month_index == begin_month_index:
-            day_range = range(int(begin_day), calendar.mdays[month_index])
-        elif month_index == end_month_index:
-            day_range = range(1, int(end_day) + 1)
-        else:
-            day_range = range(1, calendar.mdays[month_index])
-        
-        # Get KML files
-        for day in day_range:
-            get_kml_file(month, day, cookie_content, folder)
+        # Download KML
+        get_kml_file(
+                year=year, 
+                month=month, 
+                day=day, 
+                cookie_content=cookie_content, 
+                folder=folder)
 
 
 def full_df(folder):
