@@ -138,6 +138,9 @@ def create_kml_files(begin_year, begin_month, begin_day, end_year, end_month, en
     :param cookie_content: your cookie (see README)
     :param folder: path to the folder
     """
+    # Check path
+    assert folder[-1] in ['/', '\\']
+    
     # Convert input values into date format
     begin_date = DT.date(year=begin_year, 
                          month=begin_month, 
@@ -147,8 +150,8 @@ def create_kml_files(begin_year, begin_month, begin_day, end_year, end_month, en
                        day=end_day)
 
     # Get number of days to extract
-    ndays = (end_date - begin_date).days
-    date_range = [end_date - DT.timedelta(days=x) for x in range(-1, ndays)]
+    ndays = (end_date - begin_date).days + 1
+    date_range = [end_date - DT.timedelta(days=x) for x in range(0, ndays)]
     
     # Get year month and day for individual KMLs
     # Note: lists dates in reverse chronological order
@@ -156,6 +159,8 @@ def create_kml_files(begin_year, begin_month, begin_day, end_year, end_month, en
         year = date_range[i].year
         month = date_range[i].month
         day = date_range[i].day
+        
+        print('downloading ' + str(year) + '-' + str(month) + '-' + str(day))
         
         # Download KML
         get_kml_file(
