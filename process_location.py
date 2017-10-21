@@ -12,6 +12,7 @@ import imp
 from mpl_toolkits.basemap import Basemap
 from dateutil import tz
 
+
 def convert_timezone(dtime):
     """
     Convert datetimes from UTC to localtime zone
@@ -20,6 +21,7 @@ def convert_timezone(dtime):
     utc_datetime = utc_datetime.replace(tzinfo=tz.tzutc())
     local_datetime = utc_datetime.astimezone(tz.tzlocal())
     return local_datetime.strftime("%Y-%m-%d %H:%M:%S")
+
 
 def process(bs):
     """
@@ -45,6 +47,7 @@ def process(bs):
         places.append(dic)    
     return places
 
+
 def create_places_list(json_file):
     """
     Open the KML. Read the KML. Process and create json.
@@ -54,6 +57,7 @@ def create_places_list(json_file):
     with open(json_file, 'r') as f:
         s = BeautifulSoup(f, 'xml')
     return process(s)
+
 
 def convert_time(row):
     """
@@ -71,6 +75,7 @@ def convert_time(row):
     row['WeekDay'] = datetime.strptime(row['BeginDate'], "%Y-%m-%d").weekday()
     return row
 
+
 def create_df(places):
     """
     Create a well formated pandas DataFrame
@@ -85,6 +90,7 @@ def create_df(places):
     df['Track'] = df['Track'].apply(lambda x:[d.split(' ') for d in x if d != 'clampToGround'])
     df = df.apply(convert_time, axis=1)
     return df.sort_values('IndexTime', ascending=False)
+
 
 def get_kml_file(month, day, cookie_content, folder):
     """
@@ -107,30 +113,50 @@ def get_kml_file(month, day, cookie_content, folder):
         month_file = '0' + month_file
     if len(day_file) == 1 :
         day_file = '0' + day_file
-    url = 'https://www.google.fr/maps/timeline/kml?authuser=0&pb=!1m8!1m3!1i2017!2i{0}!3i{1}!2m3!1i2017!2i{0}!3i{1}'.format(month_url, day_url)
+    url = 'https://www.google.com/maps/timeline/kml?authuser=0&pb=!1m8!1m3!1i2017!2i{0}!3i{1}!2m3!1i2017!2i{0}!3i{1}'.format(month_url, day_url)
     time.sleep(np.random.randint(0, 0.3))
     r = requests.get(url, cookies=cookies)
     if r.status_code == 200:
         with open(folder + 'history-2017-{}-{}.kml'.format(month_file, day_file), 'w') as f:
             f.write(r.text)
+
         
-def create_kml_files(month_begin, day_begin, month_end, day_end, cookie_content, folder):
+def create_kml_files(begin_month, begin_day, end_month, end_day, cookie_content, folder):
     """
     Create multiple KML files from a date range
-    :param month_begin: first month of the location history
-    :param day_begin: first day of the location history
-    :param month_end: last month of the location history
-    :param day_end: last day of the location history
+    :param begin_month: first month of the location history
+    :param begin_day: first day of the location history
+    :param end_month: last month of the location history
+    :param end_day: last day of the location history
     :param cookie_content: your cookie (see README)
     :param folder: path to the folder
     """
+    # Set months to extract
     months = list(calendar.month_abbr)
-    month_range = [elem for elem in months if months.index(month_begin[:3].title()) <= months.index(elem) <= months.index(month_end[:3].title())]
+    # Convert month name to index
+    begin_month_index = months.index(begin_month[:3].title())
+    end_month_index = months.index(end_month[:3].title())
+    month_range = [elem for elem in months if begin_month_index <= months.index(elem) <= end_month_index]
+    
     for month in month_range:
-        for day in range(1, 32):
-        #TODO get only chosen days
+        
+        # TODO leap years
+        month_index = months.index(month)
+        # Set days to extract
+        if begin_month_index == end_month_index:
+            day_range = range(int(begin_day), int(end_day) + 1)
+        elif month_index == begin_month_index:
+            day_range = range(int(begin_day), calendar.mdays[month_index])
+        elif month_index == end_month_index:
+            day_range = range(1, int(end_day) + 1)
+        else:
+            day_range = range(1, calendar.mdays[month_index])
+        
+        # Get KML files
+        for day in day_range:
             get_kml_file(month, day, cookie_content, folder)
-            
+
+
 def full_df(folder):
     """
     Create a well formated DataFrame from multiple KML files
