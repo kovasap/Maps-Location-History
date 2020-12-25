@@ -135,6 +135,8 @@ def get_kml_file(year, month, day, cookie_content, folder, overwrite=False):
     if r.status_code == 200:
         with open(outfilepath, 'w') as f:
             f.write(r.text)
+    else:
+        print(r.text)
     return outfilepath
 
 
